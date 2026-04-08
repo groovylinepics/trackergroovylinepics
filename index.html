@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GROOVYLINEPICS — Concert Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a0a;
+    --deep: #111111;
+    --panel: #181818;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --accent2: #ff4757;
+    --text: #e8e8e8;
+    --muted: #666;
+    --confirmed: #39ff14;
+    --pending: #ffaa00;
+    --denied: #ff4757;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* LOGIN SCREEN */
+  #login-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--black);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .login-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 40px;
+    width: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .login-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-align: center;
+  }
+
+  .login-sub {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    text-align: center;
+    margin-top: -14px;
+  }
+
+  .login-box input[type="password"] {
+    background: var(--deep);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 16px;
+    padding: 14px 16px;
+    outline: none;
+    width: 100%;
+    letter-spacing: 4px;
+    text-align: center;
+  }
+
+  .login-box input[type="password"]:focus { border-color: var(--accent); }
+  .login-box input[type="password"]::placeholder { letter-spacing: 2px; font-size: 12px; color: var(--muted); }
+
+  .btn-login {
+    background: var(--accent);
+    color: var(--black);
+    border: none;
+    padding: 14px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  .btn-login:hover { background: #fff; }
+
+  .login-error {
+    color: var(--denied);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-align: center;
+    display: none;
+  }
+
+  /* SYNC STATUS */
+  .sync-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-top: 1px solid var(--border);
+    background: rgba(10,10,10,0.95);
+    z-index: 200;
+  }
+
+  .sync-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+
+  .sync-dot.syncing { background: var(--pending); animation: pulse 1s infinite; }
+  .sync-dot.synced { background: var(--confirmed); }
+  .sync-dot.error { background: var(--denied); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .sync-text { color: var(--muted); }
+
+  .btn-logout {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 4px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .btn-logout:hover { color: var(--accent2); border-color: var(--accent2); }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: rgba(10,10,10,0.95);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+  }
+
+  .logo-area { display: flex; flex-direction: column; line-height: 1; }
+
+  .logo-main {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 3px;
+    color: var(--accent);
+  }
+
+  .logo-sub {
+    font-size: 9px;
+    letter-spacing: 4px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .header-stats { display: flex; gap: 24px; }
+  .stat { text-align: center; }
+
+  .stat-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    color: var(--accent);
+    display: block;
+  }
+
+  .stat-label { font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+
+  /* MAIN */
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px 60px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* FORM */
+  .form-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    position: sticky;
+    top: 90px;
+  }
+
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .panel-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+
+  .panel-icon {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    transform: rotate(45deg);
+  }
+
+  .form-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+
+  label { font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; }
+
+  input, textarea, select {
+    background: var(--deep);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  input::placeholder, textarea::placeholder { color: var(--muted); font-style: italic; }
+  textarea { resize: vertical; min-height: 60px; }
+  select option { background: var(--deep); }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .btn-submit {
+    background: var(--accent);
+    color: var(--black);
+    border: none;
+    padding: 14px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 6px;
+    width: 100%;
+  }
+
+  .btn-submit:hover { background: #fff; transform: translateY(-1px); }
+
+  .btn-update {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 14px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 6px;
+    width: 100%;
+    display: none;
+  }
+
+  .btn-update:hover { background: var(--accent); color: var(--black); }
+
+  .btn-cancel {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    display: none;
+    text-transform: uppercase;
+  }
+
+  .btn-cancel:hover { color: var(--text); border-color: var(--text); }
+
+  /* LIST */
+  .list-panel { display: flex; flex-direction: column; gap: 16px; }
+
+  .list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .list-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 3px;
+    color: var(--text);
+  }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .filter-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 6px 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .filter-btn:hover, .filter-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  /* CARDS */
+  .concert-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    padding: 0;
+    transition: all 0.2s;
+    animation: slideIn 0.3s ease;
+    margin-bottom: 12px;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .concert-card:hover { border-color: #3a3a3a; background: #1d1d1d; }
+  .concert-card.status-confirmed { border-left-color: var(--confirmed); }
+  .concert-card.status-pending { border-left-color: var(--pending); }
+  .concert-card.status-denied { border-left-color: var(--denied); }
+  .concert-card.status-waiting { border-left-color: #888; }
+
+  .card-top {
+    padding: 16px 18px 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .card-left { flex: 1; }
+
+  .card-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .card-type { font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+
+  .status-badge {
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 4px 10px;
+    text-transform: uppercase;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .status-badge.confirmed { background: rgba(57,255,20,0.12); color: var(--confirmed); border: 1px solid rgba(57,255,20,0.3); }
+  .status-badge.pending { background: rgba(255,170,0,0.12); color: var(--pending); border: 1px solid rgba(255,170,0,0.3); }
+  .status-badge.denied { background: rgba(255,71,87,0.12); color: var(--denied); border: 1px solid rgba(255,71,87,0.3); }
+  .status-badge.waiting { background: rgba(136,136,136,0.12); color: #888; border: 1px solid rgba(136,136,136,0.3); }
+
+  .card-meta { padding: 0 18px 14px; display: flex; flex-wrap: wrap; gap: 16px; }
+
+  .meta-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+
+  .meta-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .meta-value { color: var(--text); }
+
+  .card-notes { padding: 10px 18px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); font-style: italic; }
+
+  .card-contact {
+    padding: 10px 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    flex-wrap: wrap;
+  }
+
+  .contact-label { color: var(--muted); text-transform: uppercase; letter-spacing: 2px; font-size: 9px; }
+  .contact-email a { color: var(--accent); text-decoration: none; }
+  .contact-email a:hover { text-decoration: underline; }
+
+  .card-actions {
+    padding: 10px 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .btn-action {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 5px 12px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+
+  .btn-action:hover { color: var(--text); border-color: #555; }
+  .btn-action.edit:hover { color: var(--accent); border-color: var(--accent); }
+  .btn-action.delete:hover { color: var(--accent2); border-color: var(--accent2); }
+
+  .status-controls {
+    padding: 8px 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .status-label-small { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-right: 4px; }
+
+  .btn-status {
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    background: transparent;
+  }
+
+  .btn-status.s-waiting { color: #888; border-color: #444; }
+  .btn-status.s-pending { color: var(--pending); border-color: rgba(255,170,0,0.3); }
+  .btn-status.s-confirmed { color: var(--confirmed); border-color: rgba(57,255,20,0.3); }
+  .btn-status.s-denied { color: var(--denied); border-color: rgba(255,71,87,0.3); }
+  .btn-status:not(.active-status) { opacity: 0.35; }
+  .btn-status.active-status { opacity: 1; }
+
+  .website-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 3px 8px;
+    text-transform: uppercase;
+  }
+
+  .website-tag.on-site { color: var(--accent); border: 1px solid rgba(232,255,71,0.3); background: rgba(232,255,71,0.06); }
+  .website-tag.not-on-site { color: var(--muted); border: 1px solid var(--border); }
+
+  .website-tag button {
+    background: none; border: none; color: inherit;
+    cursor: pointer; font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    padding: 0; letter-spacing: 1px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    border: 1px dashed var(--border);
+  }
+
+  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-text { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 3px; color: #444; margin-bottom: 6px; }
+  .empty-sub { font-size: 11px; color: #333; letter-spacing: 1px; }
+
+  .search-bar { position: relative; }
+  .search-bar input { padding-left: 32px; }
+  .search-bar::before {
+    content: '⌕';
+    position: absolute;
+    left: 10px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 16px;
+    pointer-events: none;
+  }
+
+  .list-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .section-label { font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; flex-shrink: 0; }
+
+  .toast {
+    position: fixed;
+    bottom: 40px; right: 24px;
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 12px 20px;
+    text-transform: uppercase;
+    z-index: 9999;
+    animation: toastIn 0.3s ease;
+  }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 800px) {
+    .layout { grid-template-columns: 1fr; }
+    .form-panel { position: static; }
+    header { padding: 14px 16px; }
+    .container { padding: 20px 14px 60px; }
+    .header-stats { gap: 12px; }
+    .stat-num { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">GROOVYLINEPICS</div>
+    <div class="login-sub">photosindarkness.com</div>
+    <input type="password" id="login-password" placeholder="Enter your password" onkeydown="if(event.key==='Enter')doLogin()" />
+    <div class="login-error" id="login-error">Wrong password — try again</div>
+    <button class="btn-login" onclick="doLogin()">ENTER</button>
+  </div>
+</div>
+
+<!-- MAIN APP (hidden until logged in) -->
+<div id="app" style="display:none">
+
+<header>
+  <div class="logo-area">
+    <span class="logo-main">GROOVYLINEPICS</span>
+    <span class="logo-sub">photosindarkness.com — Concert Tracker</span>
+  </div>
+  <div class="header-stats">
+    <div class="stat">
+      <span class="stat-num" id="stat-total">0</span>
+      <span class="stat-label">Shows</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num" id="stat-confirmed">0</span>
+      <span class="stat-label">Confirmed</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num" id="stat-pending">0</span>
+      <span class="stat-label">Pending</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num" id="stat-on-site">0</span>
+      <span class="stat-label">On Site</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="layout">
+
+    <!-- FORM -->
+    <div class="form-panel">
+      <div class="panel-header">
+        <div class="panel-icon"></div>
+        <span class="panel-title" id="form-title">Add New Show</span>
+      </div>
+      <div class="form-body">
+        <div class="field">
+          <label>Artist / Festival Name *</label>
+          <input type="text" id="f-name" placeholder="e.g. Radiohead" />
+        </div>
+        <div class="field">
+          <label>Type</label>
+          <select id="f-type">
+            <option value="Concert">Concert</option>
+            <option value="Festival">Festival</option>
+            <option value="Club Night">Club Night</option>
+            <option value="Open Air">Open Air</option>
+            <option value="Theater Show">Theater Show</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Date *</label>
+            <input type="date" id="f-date" />
+          </div>
+          <div class="field">
+            <label>Time</label>
+            <input type="time" id="f-time" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Venue / Place *</label>
+          <input type="text" id="f-venue" placeholder="e.g. Ancienne Belgique, Brussels" />
+        </div>
+        <div class="field">
+          <label>Contact Person</label>
+          <input type="text" id="f-contact" placeholder="e.g. Sarah — PR team" />
+        </div>
+        <div class="field">
+          <label>Contact Email</label>
+          <input type="email" id="f-email" placeholder="press@venue.com" />
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <textarea id="f-notes" placeholder="Press contact, accreditation details, notes..."></textarea>
+        </div>
+        <div class="field">
+          <label>Photopass Status</label>
+          <select id="f-status">
+            <option value="waiting">Not yet requested</option>
+            <option value="pending">Requested — Pending</option>
+            <option value="confirmed">✓ Confirmed</option>
+            <option value="denied">✗ Denied</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>On photosindarkness.com</label>
+          <select id="f-website">
+            <option value="no">Not yet published</option>
+            <option value="yes">Published on website</option>
+          </select>
+        </div>
+        <input type="hidden" id="f-edit-id" value="" />
+        <button class="btn-submit" onclick="saveEntry()">+ ADD TO TRACKER</button>
+        <button class="btn-update" id="btn-update" onclick="updateEntry()">↺ UPDATE SHOW</button>
+        <button class="btn-cancel" id="btn-cancel" onclick="cancelEdit()">Cancel editing</button>
+      </div>
+    </div>
+
+    <!-- LIST -->
+    <div class="list-panel">
+      <div class="list-header">
+        <span class="list-title">UPCOMING & LOGGED SHOWS</span>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search artist, venue, contact..." oninput="renderList()" />
+      </div>
+      <div class="list-controls">
+        <span class="section-label">Filter:</span>
+        <div class="filters">
+          <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+          <button class="filter-btn" onclick="setFilter('waiting', this)">Not Requested</button>
+          <button class="filter-btn" onclick="setFilter('pending', this)">Pending</button>
+          <button class="filter-btn" onclick="setFilter('confirmed', this)">Confirmed</button>
+          <button class="filter-btn" onclick="setFilter('denied', this)">Denied</button>
+          <button class="filter-btn" onclick="setFilter('onsite', this)">On Website</button>
+        </div>
+      </div>
+      <div id="concert-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SYNC BAR -->
+<div class="sync-bar">
+  <div class="sync-dot" id="sync-dot"></div>
+  <span class="sync-text" id="sync-text">Ready</span>
+  <button class="btn-logout" onclick="logout()">Log out</button>
+</div>
+
+</div><!-- end #app -->
+
+<script>
+// ---- CONFIG ----
+// In production this will be the same origin (served by Express)
+// In dev you can override: const API = 'http://localhost:3000'
+const API = '';
+
+let concerts = [];
+let currentFilter = 'all';
+let token = localStorage.getItem('glp_token');
+
+// ---- AUTH ----
+async function doLogin() {
+  const pw = document.getElementById('login-password').value;
+  const err = document.getElementById('login-error');
+  err.style.display = 'none';
+  try {
+    const res = await fetch(`${API}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    });
+    if (!res.ok) { err.style.display = 'block'; return; }
+    const data = await res.json();
+    token = data.token;
+    localStorage.setItem('glp_token', token);
+    showApp();
+  } catch {
+    err.textContent = 'Cannot reach server — check connection';
+    err.style.display = 'block';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('glp_token');
+  token = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-password').value = '';
+}
+
+async function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  await loadConcerts();
+}
+
+// ---- API HELPERS ----
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+}
+
+function setSyncStatus(state, text) {
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-text');
+  dot.className = 'sync-dot ' + state;
+  txt.textContent = text;
+}
+
+async function loadConcerts() {
+  setSyncStatus('syncing', 'Loading...');
+  try {
+    const res = await fetch(`${API}/api/concerts`, { headers: authHeaders() });
+    if (res.status === 401) { logout(); return; }
+    concerts = await res.json();
+    updateStats();
+    renderList();
+    setSyncStatus('synced', 'Synced ✓');
+    setTimeout(() => setSyncStatus('', 'Ready'), 2000);
+  } catch {
+    setSyncStatus('error', 'Offline — check connection');
+  }
+}
+
+// ---- CRUD ----
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+async function saveEntry() {
+  const name = document.getElementById('f-name').value.trim();
+  const date = document.getElementById('f-date').value;
+  const venue = document.getElementById('f-venue').value.trim();
+  if (!name || !date || !venue) { showToast('⚠ Fill in Name, Date & Venue'); return; }
+
+  const entry = {
+    id: generateId(),
+    name, date, venue,
+    type: document.getElementById('f-type').value,
+    time: document.getElementById('f-time').value,
+    contact: document.getElementById('f-contact').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    notes: document.getElementById('f-notes').value.trim(),
+    status: document.getElementById('f-status').value,
+    onWebsite: document.getElementById('f-website').value === 'yes',
+    createdAt: new Date().toISOString()
+  };
+
+  setSyncStatus('syncing', 'Saving...');
+  try {
+    await fetch(`${API}/api/concerts`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(entry)
+    });
+    concerts.unshift(entry);
+    updateStats();
+    renderList();
+    clearForm();
+    setSyncStatus('synced', 'Saved ✓');
+    setTimeout(() => setSyncStatus('', 'Ready'), 2000);
+    showToast('✓ Show added!');
+  } catch {
+    setSyncStatus('error', 'Save failed');
+    showToast('⚠ Could not save');
+  }
+}
+
+async function updateEntry() {
+  const id = document.getElementById('f-edit-id').value;
+  const idx = concerts.findIndex(c => c.id === id);
+  if (idx === -1) return;
+
+  const updated = {
+    ...concerts[idx],
+    name: document.getElementById('f-name').value.trim(),
+    type: document.getElementById('f-type').value,
+    date: document.getElementById('f-date').value,
+    time: document.getElementById('f-time').value,
+    venue: document.getElementById('f-venue').value.trim(),
+    contact: document.getElementById('f-contact').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    notes: document.getElementById('f-notes').value.trim(),
+    status: document.getElementById('f-status').value,
+    onWebsite: document.getElementById('f-website').value === 'yes',
+  };
+
+  setSyncStatus('syncing', 'Updating...');
+  try {
+    await fetch(`${API}/api/concerts/${id}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(updated)
+    });
+    concerts[idx] = updated;
+    updateStats();
+    cancelEdit();
+    setSyncStatus('synced', 'Updated ✓');
+    setTimeout(() => setSyncStatus('', 'Ready'), 2000);
+    showToast('✓ Show updated!');
+  } catch {
+    setSyncStatus('error', 'Update failed');
+  }
+}
+
+function editEntry(id) {
+  const c = concerts.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('f-name').value = c.name;
+  document.getElementById('f-type').value = c.type;
+  document.getElementById('f-date').value = c.date;
+  document.getElementById('f-time').value = c.time || '';
+  document.getElementById('f-venue').value = c.venue;
+  document.getElementById('f-contact').value = c.contact || '';
+  document.getElementById('f-email').value = c.email || '';
+  document.getElementById('f-notes').value = c.notes || '';
+  document.getElementById('f-status').value = c.status;
+  document.getElementById('f-website').value = c.onWebsite ? 'yes' : 'no';
+  document.getElementById('f-edit-id').value = id;
+  document.querySelector('.btn-submit').style.display = 'none';
+  document.getElementById('btn-update').style.display = 'block';
+  document.getElementById('btn-cancel').style.display = 'block';
+  document.getElementById('form-title').textContent = 'Edit Show';
+  document.querySelector('.form-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelEdit() {
+  clearForm();
+  document.querySelector('.btn-submit').style.display = 'block';
+  document.getElementById('btn-update').style.display = 'none';
+  document.getElementById('btn-cancel').style.display = 'none';
+  document.getElementById('form-title').textContent = 'Add New Show';
+}
+
+function clearForm() {
+  ['f-name','f-date','f-time','f-venue','f-contact','f-email','f-notes','f-edit-id']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-type').value = 'Concert';
+  document.getElementById('f-status').value = 'waiting';
+  document.getElementById('f-website').value = 'no';
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Remove this show from tracker?')) return;
+  setSyncStatus('syncing', 'Deleting...');
+  try {
+    await fetch(`${API}/api/concerts/${id}`, { method: 'DELETE', headers: authHeaders() });
+    concerts = concerts.filter(c => c.id !== id);
+    updateStats();
+    renderList();
+    setSyncStatus('synced', 'Deleted ✓');
+    setTimeout(() => setSyncStatus('', 'Ready'), 2000);
+    showToast('Removed.');
+  } catch {
+    setSyncStatus('error', 'Delete failed');
+  }
+}
+
+async function setStatus(id, status) {
+  const c = concerts.find(x => x.id === id);
+  if (!c) return;
+  const prev = c.status;
+  c.status = status;
+  renderList();
+  updateStats();
+  try {
+    await fetch(`${API}/api/concerts/${id}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(c)
+    });
+  } catch {
+    c.status = prev;
+    renderList();
+    showToast('⚠ Could not update status');
+  }
+}
+
+async function toggleWebsite(id) {
+  const c = concerts.find(x => x.id === id);
+  if (!c) return;
+  c.onWebsite = !c.onWebsite;
+  updateStats();
+  renderList();
+  try {
+    await fetch(`${API}/api/concerts/${id}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(c)
+    });
+  } catch {
+    c.onWebsite = !c.onWebsite;
+    renderList();
+    showToast('⚠ Could not sync');
+  }
+}
+
+// ---- UI ----
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderList();
+}
+
+function updateStats() {
+  document.getElementById('stat-total').textContent = concerts.length;
+  document.getElementById('stat-confirmed').textContent = concerts.filter(c => c.status === 'confirmed').length;
+  document.getElementById('stat-pending').textContent = concerts.filter(c => c.status === 'pending').length;
+  document.getElementById('stat-on-site').textContent = concerts.filter(c => c.onWebsite).length;
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function statusLabel(s) {
+  return { waiting: 'Not Requested', pending: 'Pass Requested', confirmed: 'Pass Confirmed', denied: 'Pass Denied' }[s] || s;
+}
+
+function renderList() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  let filtered = concerts.filter(c => {
+    const matchSearch = !search ||
+      c.name.toLowerCase().includes(search) ||
+      c.venue.toLowerCase().includes(search) ||
+      (c.contact || '').toLowerCase().includes(search) ||
+      (c.email || '').toLowerCase().includes(search);
+    const matchFilter =
+      currentFilter === 'all' ? true :
+      currentFilter === 'onsite' ? c.onWebsite :
+      c.status === currentFilter;
+    return matchSearch && matchFilter;
+  });
+  filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const list = document.getElementById('concert-list');
+  if (filtered.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📷</div>
+        <div class="empty-text">No shows logged yet</div>
+        <div class="empty-sub">Add your first concert or festival →</div>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(c => `
+    <div class="concert-card status-${c.status}" id="card-${c.id}">
+      <div class="card-top">
+        <div class="card-left">
+          <div class="card-name">${c.name}</div>
+          <div class="card-type">${c.type}</div>
+        </div>
+        <span class="status-badge ${c.status}">${statusLabel(c.status)}</span>
+        ${c.onWebsite
+          ? `<span class="website-tag on-site"><button onclick="toggleWebsite('${c.id}')">● photosindarkness.com</button></span>`
+          : `<span class="website-tag not-on-site"><button onclick="toggleWebsite('${c.id}')">○ not on site</button></span>`
+        }
+      </div>
+      <div class="card-meta">
+        <div class="meta-item">
+          <span class="meta-dot"></span>
+          <span class="meta-value">${formatDate(c.date)}${c.time ? ' · ' + c.time : ''}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-dot"></span>
+          <span class="meta-value">${c.venue}</span>
+        </div>
+      </div>
+      ${c.contact || c.email ? `
+      <div class="card-contact">
+        <span class="contact-label">Contact</span>
+        ${c.contact ? `<span style="color:var(--text);font-size:11px">${c.contact}</span>` : ''}
+        ${c.email ? `<span class="contact-email"><a href="mailto:${c.email}">${c.email}</a></span>` : ''}
+      </div>` : ''}
+      ${c.notes ? `<div class="card-notes">${c.notes}</div>` : ''}
+      <div class="status-controls">
+        <span class="status-label-small">Pass:</span>
+        <button class="btn-status s-waiting ${c.status==='waiting'?'active-status':''}" onclick="setStatus('${c.id}','waiting')">Not asked</button>
+        <button class="btn-status s-pending ${c.status==='pending'?'active-status':''}" onclick="setStatus('${c.id}','pending')">Requested</button>
+        <button class="btn-status s-confirmed ${c.status==='confirmed'?'active-status':''}" onclick="setStatus('${c.id}','confirmed')">Confirmed</button>
+        <button class="btn-status s-denied ${c.status==='denied'?'active-status':''}" onclick="setStatus('${c.id}','denied')">Denied</button>
+      </div>
+      <div class="card-actions">
+        <button class="btn-action edit" onclick="editEntry('${c.id}')">Edit</button>
+        <button class="btn-action delete" onclick="deleteEntry('${c.id}')">Remove</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// ---- INIT ----
+(async () => {
+  if (token) {
+    try {
+      const res = await fetch(`${API}/api/verify`, { headers: authHeaders() });
+      if (res.ok) { showApp(); return; }
+    } catch {}
+    localStorage.removeItem('glp_token');
+    token = null;
+  }
+})();
+</script>
+
+</body>
+</html>
